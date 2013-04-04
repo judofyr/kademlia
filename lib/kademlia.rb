@@ -47,19 +47,23 @@ module Kademlia
       end
 
       @content << [key, data]
-
-      if @content.size > @size
-        split unless @next
-      end
+      split_if_needed
     end
 
     def find_closest(key)
       @content
     end
 
+    def split_if_needed
+      if @content.size > @size
+        split unless @next
+      end
+    end
+
     def split
       @next = Bucket.new(@size, @pos + 1)
       @content, @next.content = @content.partition { |key, data| key[@pos] }
+      @next.split_if_needed
     end
   end
 
@@ -69,6 +73,13 @@ module Kademlia
     def initialize(me, size = 20)
       @me = me
       @bucket = Bucket.new(size)
+    end
+
+    def size
+      size = 1
+      bucket = @bucket
+      size += 1 while bucket = bucket.next
+      size
     end
 
     def store(key, data)

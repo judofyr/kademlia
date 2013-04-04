@@ -21,10 +21,19 @@ module Kademlia
       @table.store(k("F000"), :d)
       @table.store(k("0003"), :c)
 
-      assert @table.bucket.next, "the bucket wasn't split"
+      assert_equal 2, @table.size
       fst = @table.bucket
       assert_equal 1, fst.content.size
       assert_equal [k("F000"), :d], fst.content[0].last
+    end
+
+    def test_recursive_split
+      @table.store(k("0100"), :a)
+      @table.store(k("0200"), :b)
+      @table.store(k("0300"), :c)
+      @table.store(k("0400"), :d)
+
+      assert_equal 6, @table.size
     end
   end
 end
