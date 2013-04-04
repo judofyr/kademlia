@@ -7,8 +7,18 @@ module Kademlia
       @data = data
     end
 
+    def ==(other)
+      self.class == other.class and
+      self.size  == other.size and
+      self.data  == other.data
+    end
+
     def self.from_hex(hex)
-      new(hex.size * 4, [hex].pack('H*'))
+      new(hex.size * 4, [hex].pack('h*'))
+    end
+
+    def [](pos)
+      @data[pos >> 8].ord[pos & 7] == 1
     end
 
     def xor(other)
@@ -21,20 +31,41 @@ module Kademlia
   end
 
   class Bucket
+    attr_accessor :content, :next
+
     def initialize(size, pos = 0)
+      @size = size
+      @pos = pos
       @content = []
+      @next = nil
     end
 
-    def store(lookup, key, data)
+    def store(key, data)
+      if @next && !key[@pos]
+        @next.store(key, data)
+        return
+      end
+
       @content << [key, data]
+
+      if @content.size > @size
+        split unless @next
+      end
     end
 
     def find_closest(key)
       @content
     end
+
+    def split
+      @next = Bucket.new(@size, @pos + 1)
+      @content, @next.content = @content.partition { |key, data| key[@pos] }
+    end
   end
 
   class RoutingTable
+    attr_reader :bucket
+
     def initialize(me, size = 20)
       @me = me
       @bucket = Bucket.new(size)
@@ -42,12 +73,14 @@ module Kademlia
 
     def store(key, data)
       diff = @me.xor(key)
-      @bucket.store(diff, key, data)
+      @bucket.store(diff, [key, data])
     end
 
-    def find_closest(key)
+    def find_closest(key, n = 3)
       diff = @me.xor(key)
-      @bucket.find_closest(diff)
+      @bucket.find_closest(diff).map do |key, data|
+        data
+      end
     end
   end
 end
